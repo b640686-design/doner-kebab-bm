@@ -29,12 +29,12 @@ export async function logoutAdmin() {
 }
 
 export async function getCurrentUser() {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getSession();
 
   if (error) {
-    console.error("Ошибка получения пользователя:", error.message);
+    console.error("Ошибка проверки сессии:", error.message);
     throw error;
   }
 
-  return data.user;
+  return data.session?.user ?? null;
 }

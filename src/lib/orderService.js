@@ -2,23 +2,51 @@
 import { supabase } from "./supabaseClient";
 
 export async function createOrder(order) {
-  if (!order) {
-    throw new Error("Заказ не указан");
-  }
+  if (!order) throw new Error("Заказ не указан");
 
-  const { error } = await supabase
-    .from("orders")
-    .insert([order]);
+  const { data, error } = await supabase.functions.invoke(
+    "bright-action",
+    {
+      body: {
+        action: "create",
+        order,
+      },
+    }
+  );
 
-  if (error) {
-    console.error("Ошибка создания заказа:", error.message);
-    throw error;
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+
+  if (!data?.order || !data?.trackingToken) {
+    throw new Error("Не удалось получить данные заказа");
   }
 
   return {
     ...order,
-    id: `local-${Date.now()}`,
+    ...data.order,
+    trackingToken: data.trackingToken,
   };
+}
+
+export async function getOrderStatus(trackingToken) {
+  if (!trackingToken) {
+    throw new Error("Нет кода отслеживания");
+  }
+
+  const { data, error } = await supabase.functions.invoke(
+    "bright-action",
+    {
+      body: {
+        action: "track",
+        trackingToken,
+      },
+    }
+  );
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+
+  return data.order;
 }
 
 export async function getOrders() {
@@ -27,10 +55,7 @@ export async function getOrders() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Ошибка загрузки заказов:", error.message);
-    throw error;
-  }
+  if (error) throw error;
 
   return data ?? [];
 }
@@ -47,10 +72,7 @@ export async function updateOrderStatus(id, status) {
     .select()
     .single();
 
-  if (error) {
-    console.error("Ошибка обновления статуса:", error.message);
-    throw error;
-  }
+  if (error) throw error;
 
   return data;
 }

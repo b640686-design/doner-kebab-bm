@@ -2199,6 +2199,7 @@ import {
   createOrder,
   getOrders,
   updateOrderStatus,
+  getOrderStatus,
 } from "./lib/orderService";
 
 import {
@@ -2461,6 +2462,38 @@ export default function App() {
     return () => window.removeEventListener("keydown", closeModal);
   }, []);
 
+  useEffect(() => {
+    const checkStatuses = async () => {
+      const savedOrders = JSON.parse(
+        localStorage.getItem("doner-orders") || "[]"
+      );
+
+      for (const order of savedOrders) {
+        if (!order.trackingToken) continue;
+
+        try {
+          const latest = await getOrderStatus(order.trackingToken);
+
+          setOrders((current) =>
+            current.map((item) =>
+              item.id === order.id
+                ? { ...item, status: latest.status }
+                : item
+            )
+          );
+        } catch (error) {
+          console.error("Ошибка проверки статуса:", error);
+        }
+      }
+    };
+
+    checkStatuses();
+
+    const timer = setInterval(checkStatuses, 10000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -2559,10 +2592,10 @@ export default function App() {
 
       return found
         ? current.map((item) =>
-            item.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          )
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
         : [...current, { ...product, quantity: 1 }];
     });
 
